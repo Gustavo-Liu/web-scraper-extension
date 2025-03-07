@@ -4,7 +4,9 @@
   "version": "1.0",
   "description": "一个可以爬取当前网页信息的Chrome扩展",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://api.anthropic.com/*"],
+  "host_permissions": [
+    "https://api.anthropic.com/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

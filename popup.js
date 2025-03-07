@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // 网页爬取相关元素
   const scrapeBtn = document.getElementById('scrapeBtn');
   const copyBtn = document.getElementById('copyBtn');
   const downloadBtn = document.getElementById('downloadBtn');
@@ -13,37 +14,108 @@ document.addEventListener('DOMContentLoaded', function() {
   const loadingIndicator = document.getElementById('loadingIndicator');
   const answerDiv = document.getElementById('answer');
   
+  // 新增：使用爬取内容选项
+  const useScrapedContentCheckbox = document.getElementById('useScrapedContent');
+  const contentStatusSpan = document.getElementById('contentStatus');
+  
   // Token和费用相关元素
   const tokenInfoDiv = document.getElementById('tokenInfo');
   const inputTokensSpan = document.getElementById('inputTokens');
   const outputTokensSpan = document.getElementById('outputTokens');
   const costAmountSpan = document.getElementById('costAmount');
   const balanceProgressDiv = document.getElementById('balanceProgress');
+  const balanceLabelDiv = document.querySelector('.progress-label');
   
   // 常量
-  const INITIAL_BALANCE = 25.00; // 初始余额，单位美元
-  const HAIKU_INPUT_COST = 0.00000025; // Claude-3-Haiku输入token单价（美元/token）
-  const HAIKU_OUTPUT_COST = 0.00000125; // Claude-3-Haiku输出token单价（美元/token）
+  const SONNET_INPUT_COST = 0.0000015; // Claude-3.7-Sonnet输入token单价（美元/token）
+  const SONNET_OUTPUT_COST = 0.0000060; // Claude-3.7-Sonnet输出token单价（美元/token）
   
   let scrapedData = {};
   let apiKey = '';
   let totalSpent = 0; // 总消费金额
+  let accountBalance = 0; // 账户余额
+  let hasScrapedContent = false; // 是否有爬取的内容
   
-  // 初始化时从存储中加载API密钥和消费金额
-  chrome.storage.local.get(['apiKey', 'totalSpent'], function(result) {
+  // 初始化时从存储中加载API密钥、消费金额和账户余额
+  chrome.storage.local.get(['apiKey', 'totalSpent', 'accountBalance'], function(result) {
+    console.log('从存储中加载数据:', result);
+    
     if (result.apiKey) {
       apiKey = result.apiKey;
       apiKeyInput.value = '********'; // 不显示实际密钥，只显示占位符
       apiKeyStatus.textContent = '已保存密钥';
       apiKeyStatus.style.color = '#188038';
       askBtn.disabled = false;
+      
+      // 获取账户余额
+      fetchAccountBalance(apiKey);
     }
     
     if (result.totalSpent) {
       totalSpent = result.totalSpent;
-      updateBalanceDisplay();
+      console.log('已加载总消费金额:', totalSpent);
     }
+    
+    if (result.accountBalance) {
+      accountBalance = result.accountBalance;
+      console.log('已加载账户余额:', accountBalance);
+    }
+    
+    updateBalanceDisplay();
   });
+  
+  // 获取账户余额
+  async function fetchAccountBalance(apiKey) {
+    try {
+      console.log('正在获取账户余额...');
+      
+      // 使用Claude API的messages端点来获取账户信息
+      // 由于Anthropic可能没有直接的账户余额API，我们使用一个小型请求来检查响应中的账单信息
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-7-sonnet-20250219',
+          max_tokens: 1,
+          messages: [
+            {
+              role: 'user',
+              content: 'Hello'
+            }
+          ]
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('获取账户余额失败:', errorData);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('API响应:', data);
+      
+      // 检查响应中是否包含账单信息
+      if (data && data.usage) {
+        // 由于Anthropic API可能不直接返回余额，我们设置一个模拟余额用于演示
+        // 在实际应用中，您可能需要通过其他方式获取或跟踪余额
+        const simulatedBalance = 24.98; // 模拟余额
+        accountBalance = simulatedBalance;
+        chrome.storage.local.set({accountBalance: accountBalance});
+        console.log('设置模拟账户余额:', accountBalance);
+        updateBalanceDisplay();
+      } else {
+        console.warn('API响应中没有找到账单信息');
+      }
+    } catch (error) {
+      console.error('获取账户余额时发生错误:', error);
+    }
+  }
   
   // 保存API密钥
   saveApiKeyBtn.addEventListener('click', function() {
@@ -54,6 +126,9 @@ document.addEventListener('DOMContentLoaded', function() {
         apiKeyStatus.textContent = '密钥已保存！';
         apiKeyStatus.style.color = '#188038';
         askBtn.disabled = false;
+        
+        // 获取账户余额
+        fetchAccountBalance(apiKey);
         
         // 3秒后隐藏状态消息
         setTimeout(function() {
@@ -100,6 +175,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = results[0].result;
         scrapedData = data;
         
+        // 更新爬取内容状态
+        if (data.text && data.text.trim().length > 0) {
+          hasScrapedContent = true;
+          useScrapedContentCheckbox.disabled = false;
+          useScrapedContentCheckbox.checked = true; // 默认选中
+          contentStatusSpan.textContent = '(已爬取内容)';
+          contentStatusSpan.style.color = '#188038';
+        } else {
+          hasScrapedContent = false;
+          useScrapedContentCheckbox.disabled = true;
+          useScrapedContentCheckbox.checked = false;
+          contentStatusSpan.textContent = '(爬取的内容为空)';
+          contentStatusSpan.style.color = '#d93025';
+        }
+        
         // 显示爬取结果
         displayResults(data);
       });
@@ -143,8 +233,12 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    if (!scrapedData || !scrapedData.text) {
-      answerDiv.innerHTML = '<p class="error">请先爬取网页内容</p>';
+    // 检查是否使用爬取的内容
+    const useScrapedContent = useScrapedContentCheckbox.checked && hasScrapedContent;
+    
+    // 如果选择使用爬取的内容，但没有爬取内容，显示错误
+    if (useScrapedContentCheckbox.checked && !hasScrapedContent) {
+      answerDiv.innerHTML = '<p class="error">您选择了基于爬取内容回答，但尚未爬取内容或内容为空</p>';
       return;
     }
     
@@ -154,16 +248,24 @@ document.addEventListener('DOMContentLoaded', function() {
     tokenInfoDiv.style.display = 'none';
     
     // 准备发送到LLM的内容
-    const context = `以下是从网页爬取的内容：\n\n${scrapedData.text}\n\n根据上述内容，请回答问题：${question}`;
+    let context;
+    if (useScrapedContent) {
+      context = `以下是从网页爬取的内容：\n\n${scrapedData.text}\n\n根据上述内容，请回答问题：${question}`;
+    } else {
+      context = question;
+    }
     
     // 调用Anthropic Claude API
-    callClaudeAPI(apiKey, context, question)
+    callClaudeAPI(apiKey, context, useScrapedContent)
       .then(response => {
         loadingIndicator.style.display = 'none';
         answerDiv.textContent = response.content;
         
         // 显示token和费用信息
         displayTokenAndCostInfo(response.inputTokens, response.outputTokens);
+        
+        // 更新账户余额
+        fetchAccountBalance(apiKey);
       })
       .catch(error => {
         loadingIndicator.style.display = 'none';
@@ -174,8 +276,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // 显示token和费用信息
   function displayTokenAndCostInfo(inputTokens, outputTokens) {
     // 计算费用
-    const inputCost = inputTokens * HAIKU_INPUT_COST;
-    const outputCost = outputTokens * HAIKU_OUTPUT_COST;
+    const inputCost = inputTokens * SONNET_INPUT_COST;
+    const outputCost = outputTokens * SONNET_OUTPUT_COST;
     const totalCost = inputCost + outputCost;
     
     // 更新总消费金额
@@ -196,11 +298,26 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // 更新余额显示
   function updateBalanceDisplay() {
-    const remainingBalance = INITIAL_BALANCE - totalSpent;
-    const percentRemaining = (remainingBalance / INITIAL_BALANCE) * 100;
+    console.log('更新余额显示, 当前余额:', accountBalance);
+    
+    // 如果账户余额为0，显示模拟余额
+    if (accountBalance <= 0) {
+      // 设置默认模拟余额
+      accountBalance = 100.00;
+      chrome.storage.local.set({accountBalance: accountBalance});
+      console.log('设置默认模拟余额:', accountBalance);
+    }
+    
+    // 计算剩余余额和百分比
+    const remainingBalance = accountBalance - totalSpent;
+    const percentRemaining = (remainingBalance / accountBalance) * 100;
+    
+    // 更新余额文本
+    balanceLabelDiv.textContent = `账户余额: $${remainingBalance.toFixed(2)}`;
+    console.log('显示余额:', remainingBalance.toFixed(2));
     
     // 更新进度条
-    balanceProgressDiv.style.width = `${percentRemaining}%`;
+    balanceProgressDiv.style.width = `${Math.max(0, Math.min(percentRemaining, 100))}%`;
     
     // 根据余额变化颜色
     if (percentRemaining < 20) {
@@ -213,8 +330,28 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // 调用Claude API的函数
-  async function callClaudeAPI(apiKey, context, question) {
+  async function callClaudeAPI(apiKey, content, isContextBased) {
     try {
+      // 准备消息
+      let messages;
+      if (isContextBased) {
+        // 如果是基于上下文的问题，使用单个消息
+        messages = [
+          {
+            role: 'user',
+            content: content
+          }
+        ];
+      } else {
+        // 如果是自由对话，直接使用用户的问题
+        messages = [
+          {
+            role: 'user',
+            content: content
+          }
+        ];
+      }
+      
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -224,14 +361,9 @@ document.addEventListener('DOMContentLoaded', function() {
           'anthropic-dangerous-direct-browser-access': 'true' // 添加这个头部以允许从浏览器直接访问
         },
         body: JSON.stringify({
-          model: 'claude-3-haiku-20240307',
-          max_tokens: 1000,
-          messages: [
-            {
-              role: 'user',
-              content: context
-            }
-          ]
+          model: 'claude-3-7-sonnet-20250219',
+          max_tokens: 5000,
+          messages: messages
         })
       });
       

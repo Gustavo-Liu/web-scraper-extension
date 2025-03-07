@@ -42,16 +42,23 @@
       <p>点击"爬取信息"按钮开始爬取当前网页的信息。</p>
     </div>
     
-    <!-- 新增问答区域 -->
+    <!-- AI问答区域 -->
     <div class="ai-section">
-      <h3>AI问答</h3>
-      <p class="description">使用AI根据爬取的内容回答问题</p>
+      <h3>AI问答 (Claude 3.7 Sonnet)</h3>
+      <p class="description">使用AI回答问题，可以自由对话或基于爬取的内容</p>
       
       <div class="api-key-section">
         <label for="apiKey">API密钥:</label>
         <input type="password" id="apiKey" placeholder="输入您的API密钥">
         <button id="saveApiKey">保存密钥</button>
         <span id="apiKeyStatus"></span>
+      </div>
+      
+      <!-- 添加是否使用爬取内容的选项 -->
+      <div class="use-scraped-content">
+        <input type="checkbox" id="useScrapedContent" disabled>
+        <label for="useScrapedContent">基于爬取的内容回答问题</label>
+        <span id="contentStatus">(尚未爬取内容)</span>
       </div>
       
       <div class="question-section">
@@ -66,7 +73,7 @@
         </div>
         <div class="answer" id="answer"></div>
         
-        <!-- 新增token和费用显示区域 -->
+        <!-- token和费用显示区域 -->
         <div class="token-info" id="tokenInfo" style="display: none;">
           <div class="token-count">
             <span>输入tokens: <strong id="inputTokens">0</strong></span>
@@ -75,7 +82,7 @@
           <div class="cost-info">
             <span>本次费用: <strong id="costAmount">$0.00</strong></span>
             <div class="progress-container">
-              <div class="progress-label">账户余额: $25.00</div>
+              <div class="progress-label">账户余额: 加载中...</div>
               <div class="progress-bar">
                 <div class="progress" id="balanceProgress" style="width: 100%;"></div>
               </div>

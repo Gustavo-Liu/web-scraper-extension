@@ -1,0 +1,131 @@
+/* 全局样式 */
+body {
+  font-family: 'Microsoft YaHei', Arial, sans-serif;
+  width: 350px;
+  padding: 15px;
+  margin: 0;
+  color: #333;
+}
+
+/* 容器样式 */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* 标题样式 */
+h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #4285f4;
+  font-size: 18px;
+  border-bottom: 2px solid #4285f4;
+  padding-bottom: 5px;
+}
+
+/* 按钮样式 */
+button {
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #3367d6;
+}
+
+button:active {
+  background-color: #2a56c6;
+}
+
+/* 结果区域样式 */
+.result {
+  margin-top: 10px;
+  max-height: 350px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  font-size: 14px;
+}
+
+/* 选项区域样式 */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+/* 复选框组样式 */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-group input[type="checkbox"] {
+  margin: 0;
+}
+
+/* 操作按钮区域样式 */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+/* 详情样式 */
+details {
+  margin: 10px 0;
+}
+
+summary {
+  cursor: pointer;
+  color: #4285f4;
+  font-weight: bold;
+}
+
+/* 链接样式 */
+a {
+  color: #4285f4;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 加载状态样式 */
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+/* 错误信息样式 */
+.error {
+  color: #d93025;
+  padding: 10px;
+  border: 1px solid #d93025;
+  border-radius: 4px;
+  background-color: #fce8e6;
+}
+
+/* 成功信息样式 */
+.success {
+  color: #188038;
+  padding: 10px;
+  border: 1px solid #188038;
+  border-radius: 4px;
+  background-color: #e6f4ea;
+} 

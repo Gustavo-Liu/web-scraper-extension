@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>创建图标</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 10px 0;
+    }
+    .instructions {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    button {
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+  </style>
+</head>
+<body>
+  <h1>网页信息爬取器图标生成器</h1>
+  
+  <div class="instructions">
+    <h2>使用说明</h2>
+    <p>这个页面可以帮助您生成Chrome扩展所需的图标。点击下面的按钮生成图标，然后右键点击图标并选择"保存图片"。</p>
+    <p>您需要保存三种尺寸的图标：16x16、48x48和128x128。</p>
+    <p>保存后，将图标文件放在扩展的images目录中，并命名为icon16.png、icon48.png和icon128.png。</p>
+  </div>
+  
+  <div>
+    <h2>16x16 图标</h2>
+    <canvas id="canvas16" width="16" height="16"></canvas>
+    <button onclick="downloadIcon(16)">下载 16x16 图标</button>
+  </div>
+  
+  <div>
+    <h2>48x48 图标</h2>
+    <canvas id="canvas48" width="48" height="48"></canvas>
+    <button onclick="downloadIcon(48)">下载 48x48 图标</button>
+  </div>
+  
+  <div>
+    <h2>128x128 图标</h2>
+    <canvas id="canvas128" width="128" height="128"></canvas>
+    <button onclick="downloadIcon(128)">下载 128x128 图标</button>
+  </div>
+  
+  <script>
+    // 在页面加载时绘制图标
+    window.onload = function() {
+      drawIcon(16);
+      drawIcon(48);
+      drawIcon(128);
+    };
+    
+    // 绘制图标的函数
+    function drawIcon(size) {
+      const canvas = document.getElementById(`canvas${size}`);
+      const ctx = canvas.getContext('2d');
+      
+      // 清除画布
+      ctx.clearRect(0, 0, size, size);
+      
+      // 设置背景
+      ctx.fillStyle = '#4285f4'; // Google蓝色
+      ctx.fillRect(0, 0, size, size);
+      
+      // 绘制边框
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = size / 16;
+      ctx.strokeRect(size / 8, size / 8, size * 3/4, size * 3/4);
+      
+      // 绘制"WS"文字（Web Scraper的缩写）
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${size / 2}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('WS', size / 2, size / 2);
+      
+      // 绘制爬虫图案（简化的蜘蛛网）
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = size / 32;
+      ctx.beginPath();
+      
+      // 绘制放射状线条
+      for (let i = 0; i < 4; i++) {
+        const angle = (Math.PI / 4) * i;
+        const startX = size / 2;
+        const startY = size / 2;
+        const endX = size / 2 + (size / 3) * Math.cos(angle);
+        const endY = size / 2 + (size / 3) * Math.sin(angle);
+        
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+      }
+      
+      // 绘制同心圆
+      ctx.arc(size / 2, size / 2, size / 4, 0, Math.PI * 2);
+      
+      ctx.stroke();
+    }
+    
+    // 下载图标的函数
+    function downloadIcon(size) {
+      const canvas = document.getElementById(`canvas${size}`);
+      const link = document.createElement('a');
+      link.download = `icon${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html> 

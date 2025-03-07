@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>网页信息爬取器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2>网页信息爬取器</h2>
+    
+    <div class="options">
+      <div class="checkbox-group">
+        <input type="checkbox" id="title" checked>
+        <label for="title">网页标题</label>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="meta" checked>
+        <label for="meta">Meta信息</label>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="links" checked>
+        <label for="links">链接</label>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="images" checked>
+        <label for="images">图片</label>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="text" checked>
+        <label for="text">主要文本内容</label>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button id="scrapeBtn">爬取信息</button>
+      <button id="copyBtn">复制结果</button>
+      <button id="downloadBtn">下载结果</button>
+    </div>
+    
+    <div class="result" id="result">
+      <p>点击"爬取信息"按钮开始爬取当前网页的信息。</p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 

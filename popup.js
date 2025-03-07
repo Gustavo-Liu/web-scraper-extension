@@ -4,7 +4,50 @@ document.addEventListener('DOMContentLoaded', function() {
   const downloadBtn = document.getElementById('downloadBtn');
   const resultDiv = document.getElementById('result');
   
+  // AI问答相关元素
+  const apiKeyInput = document.getElementById('apiKey');
+  const saveApiKeyBtn = document.getElementById('saveApiKey');
+  const apiKeyStatus = document.getElementById('apiKeyStatus');
+  const questionInput = document.getElementById('question');
+  const askBtn = document.getElementById('askBtn');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  const answerDiv = document.getElementById('answer');
+  
   let scrapedData = {};
+  let apiKey = '';
+  
+  // 初始化时从存储中加载API密钥
+  chrome.storage.local.get(['apiKey'], function(result) {
+    if (result.apiKey) {
+      apiKey = result.apiKey;
+      apiKeyInput.value = '********'; // 不显示实际密钥，只显示占位符
+      apiKeyStatus.textContent = '已保存密钥';
+      apiKeyStatus.style.color = '#188038';
+      askBtn.disabled = false;
+    }
+  });
+  
+  // 保存API密钥
+  saveApiKeyBtn.addEventListener('click', function() {
+    const newApiKey = apiKeyInput.value.trim();
+    if (newApiKey) {
+      apiKey = newApiKey;
+      chrome.storage.local.set({apiKey: apiKey}, function() {
+        apiKeyStatus.textContent = '密钥已保存！';
+        apiKeyStatus.style.color = '#188038';
+        askBtn.disabled = false;
+        
+        // 3秒后隐藏状态消息
+        setTimeout(function() {
+          apiKeyInput.value = '********'; // 替换为占位符
+          apiKeyStatus.textContent = '已保存密钥';
+        }, 3000);
+      });
+    } else {
+      apiKeyStatus.textContent = '请输入有效的API密钥';
+      apiKeyStatus.style.color = '#d93025';
+    }
+  });
   
   // 爬取信息按钮点击事件
   scrapeBtn.addEventListener('click', function() {
@@ -68,6 +111,78 @@ document.addEventListener('DOMContentLoaded', function() {
     
     URL.revokeObjectURL(url);
   });
+  
+  // 提问按钮点击事件
+  askBtn.addEventListener('click', function() {
+    const question = questionInput.value.trim();
+    if (!question) {
+      answerDiv.innerHTML = '<p class="error">请输入问题</p>';
+      return;
+    }
+    
+    if (!apiKey) {
+      answerDiv.innerHTML = '<p class="error">请先设置API密钥</p>';
+      return;
+    }
+    
+    if (!scrapedData || !scrapedData.text) {
+      answerDiv.innerHTML = '<p class="error">请先爬取网页内容</p>';
+      return;
+    }
+    
+    // 显示加载状态
+    loadingIndicator.style.display = 'flex';
+    answerDiv.innerHTML = '';
+    
+    // 准备发送到LLM的内容
+    const context = `以下是从网页爬取的内容：\n\n${scrapedData.text}\n\n根据上述内容，请回答问题：${question}`;
+    
+    // 调用Anthropic Claude API
+    callClaudeAPI(apiKey, context, question)
+      .then(response => {
+        loadingIndicator.style.display = 'none';
+        answerDiv.textContent = response;
+      })
+      .catch(error => {
+        loadingIndicator.style.display = 'none';
+        answerDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+      });
+  });
+  
+  // 调用Claude API的函数
+  async function callClaudeAPI(apiKey, context, question) {
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'user',
+              content: context
+            }
+          ]
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || '请求失败');
+      }
+      
+      const data = await response.json();
+      return data.content[0].text;
+    } catch (error) {
+      console.error('API调用错误:', error);
+      throw error;
+    }
+  }
   
   // 显示爬取结果
   function displayResults(data) {

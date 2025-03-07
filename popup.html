@@ -15,15 +15,15 @@
         <label for="title">网页标题</label>
       </div>
       <div class="checkbox-group">
-        <input type="checkbox" id="meta" checked>
+        <input type="checkbox" id="meta">
         <label for="meta">Meta信息</label>
       </div>
       <div class="checkbox-group">
-        <input type="checkbox" id="links" checked>
+        <input type="checkbox" id="links">
         <label for="links">链接</label>
       </div>
       <div class="checkbox-group">
-        <input type="checkbox" id="images" checked>
+        <input type="checkbox" id="images">
         <label for="images">图片</label>
       </div>
       <div class="checkbox-group">
@@ -65,6 +65,23 @@
           <p>AI正在思考中...</p>
         </div>
         <div class="answer" id="answer"></div>
+        
+        <!-- 新增token和费用显示区域 -->
+        <div class="token-info" id="tokenInfo" style="display: none;">
+          <div class="token-count">
+            <span>输入tokens: <strong id="inputTokens">0</strong></span>
+            <span>输出tokens: <strong id="outputTokens">0</strong></span>
+          </div>
+          <div class="cost-info">
+            <span>本次费用: <strong id="costAmount">$0.00</strong></span>
+            <div class="progress-container">
+              <div class="progress-label">账户余额: $25.00</div>
+              <div class="progress-bar">
+                <div class="progress" id="balanceProgress" style="width: 100%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

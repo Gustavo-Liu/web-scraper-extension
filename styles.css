@@ -239,4 +239,48 @@ a:hover {
   font-size: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
+}
+
+/* Token和费用信息样式 */
+.token-info {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.token-count {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cost-info {
+  margin-top: 10px;
+}
+
+.progress-container {
+  margin-top: 8px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background-color: #4285f4;
+  transition: width 0.3s ease;
 } 

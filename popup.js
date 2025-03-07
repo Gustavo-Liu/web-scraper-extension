@@ -13,17 +13,35 @@ document.addEventListener('DOMContentLoaded', function() {
   const loadingIndicator = document.getElementById('loadingIndicator');
   const answerDiv = document.getElementById('answer');
   
+  // Token和费用相关元素
+  const tokenInfoDiv = document.getElementById('tokenInfo');
+  const inputTokensSpan = document.getElementById('inputTokens');
+  const outputTokensSpan = document.getElementById('outputTokens');
+  const costAmountSpan = document.getElementById('costAmount');
+  const balanceProgressDiv = document.getElementById('balanceProgress');
+  
+  // 常量
+  const INITIAL_BALANCE = 25.00; // 初始余额，单位美元
+  const HAIKU_INPUT_COST = 0.00000025; // Claude-3-Haiku输入token单价（美元/token）
+  const HAIKU_OUTPUT_COST = 0.00000125; // Claude-3-Haiku输出token单价（美元/token）
+  
   let scrapedData = {};
   let apiKey = '';
+  let totalSpent = 0; // 总消费金额
   
-  // 初始化时从存储中加载API密钥
-  chrome.storage.local.get(['apiKey'], function(result) {
+  // 初始化时从存储中加载API密钥和消费金额
+  chrome.storage.local.get(['apiKey', 'totalSpent'], function(result) {
     if (result.apiKey) {
       apiKey = result.apiKey;
       apiKeyInput.value = '********'; // 不显示实际密钥，只显示占位符
       apiKeyStatus.textContent = '已保存密钥';
       apiKeyStatus.style.color = '#188038';
       askBtn.disabled = false;
+    }
+    
+    if (result.totalSpent) {
+      totalSpent = result.totalSpent;
+      updateBalanceDisplay();
     }
   });
   
@@ -133,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 显示加载状态
     loadingIndicator.style.display = 'flex';
     answerDiv.innerHTML = '';
+    tokenInfoDiv.style.display = 'none';
     
     // 准备发送到LLM的内容
     const context = `以下是从网页爬取的内容：\n\n${scrapedData.text}\n\n根据上述内容，请回答问题：${question}`;
@@ -141,13 +160,57 @@ document.addEventListener('DOMContentLoaded', function() {
     callClaudeAPI(apiKey, context, question)
       .then(response => {
         loadingIndicator.style.display = 'none';
-        answerDiv.textContent = response;
+        answerDiv.textContent = response.content;
+        
+        // 显示token和费用信息
+        displayTokenAndCostInfo(response.inputTokens, response.outputTokens);
       })
       .catch(error => {
         loadingIndicator.style.display = 'none';
         answerDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
       });
   });
+  
+  // 显示token和费用信息
+  function displayTokenAndCostInfo(inputTokens, outputTokens) {
+    // 计算费用
+    const inputCost = inputTokens * HAIKU_INPUT_COST;
+    const outputCost = outputTokens * HAIKU_OUTPUT_COST;
+    const totalCost = inputCost + outputCost;
+    
+    // 更新总消费金额
+    totalSpent += totalCost;
+    chrome.storage.local.set({totalSpent: totalSpent});
+    
+    // 更新显示
+    inputTokensSpan.textContent = inputTokens.toLocaleString();
+    outputTokensSpan.textContent = outputTokens.toLocaleString();
+    costAmountSpan.textContent = `$${totalCost.toFixed(6)}`;
+    
+    // 更新余额进度条
+    updateBalanceDisplay();
+    
+    // 显示token信息区域
+    tokenInfoDiv.style.display = 'block';
+  }
+  
+  // 更新余额显示
+  function updateBalanceDisplay() {
+    const remainingBalance = INITIAL_BALANCE - totalSpent;
+    const percentRemaining = (remainingBalance / INITIAL_BALANCE) * 100;
+    
+    // 更新进度条
+    balanceProgressDiv.style.width = `${percentRemaining}%`;
+    
+    // 根据余额变化颜色
+    if (percentRemaining < 20) {
+      balanceProgressDiv.style.backgroundColor = '#d93025'; // 红色
+    } else if (percentRemaining < 50) {
+      balanceProgressDiv.style.backgroundColor = '#f9ab00'; // 黄色
+    } else {
+      balanceProgressDiv.style.backgroundColor = '#4285f4'; // 蓝色
+    }
+  }
   
   // 调用Claude API的函数
   async function callClaudeAPI(apiKey, context, question) {
@@ -158,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
+          'anthropic-dangerous-direct-browser-access': 'true' // 添加这个头部以允许从浏览器直接访问
         },
         body: JSON.stringify({
           model: 'claude-3-haiku-20240307',
@@ -178,7 +241,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const data = await response.json();
-      return data.content[0].text;
+      
+      // 返回内容和token信息
+      return {
+        content: data.content[0].text,
+        inputTokens: data.usage.input_tokens,
+        outputTokens: data.usage.output_tokens
+      };
     } catch (error) {
       console.error('API调用错误:', error);
       throw error;

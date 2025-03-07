@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const useScrapedContentCheckbox = document.getElementById('useScrapedContent');
   const contentStatusSpan = document.getElementById('contentStatus');
   
+  // 历史记录相关元素
+  const viewHistoryBtn = document.getElementById('viewHistoryBtn');
+  const exportHistoryBtn = document.getElementById('exportHistoryBtn');
+  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+  const historyListDiv = document.getElementById('historyList');
+  
   // Token和费用相关元素
   const tokenInfoDiv = document.getElementById('tokenInfo');
   const inputTokensSpan = document.getElementById('inputTokens');
@@ -35,9 +41,10 @@ document.addEventListener('DOMContentLoaded', function() {
   let totalSpent = 0; // 总消费金额
   let accountBalance = 0; // 账户余额
   let hasScrapedContent = false; // 是否有爬取的内容
+  let chatHistory = []; // 对话历史记录
   
-  // 初始化时从存储中加载API密钥、消费金额和账户余额
-  chrome.storage.local.get(['apiKey', 'totalSpent', 'accountBalance'], function(result) {
+  // 初始化时从存储中加载API密钥、消费金额、账户余额和对话历史
+  chrome.storage.local.get(['apiKey', 'totalSpent', 'accountBalance', 'chatHistory'], function(result) {
     console.log('从存储中加载数据:', result);
     
     if (result.apiKey) {
@@ -59,6 +66,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (result.accountBalance) {
       accountBalance = result.accountBalance;
       console.log('已加载账户余额:', accountBalance);
+    }
+    
+    if (result.chatHistory && Array.isArray(result.chatHistory)) {
+      chatHistory = result.chatHistory;
+      console.log('已加载对话历史记录:', chatHistory.length, '条');
+      
+      // 如果有历史记录，启用查看历史按钮
+      if (chatHistory.length > 0) {
+        viewHistoryBtn.disabled = false;
+        exportHistoryBtn.disabled = false;
+        clearHistoryBtn.disabled = false;
+      } else {
+        viewHistoryBtn.disabled = true;
+        exportHistoryBtn.disabled = true;
+        clearHistoryBtn.disabled = true;
+      }
     }
     
     updateBalanceDisplay();
@@ -264,6 +287,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // 显示token和费用信息
         displayTokenAndCostInfo(response.inputTokens, response.outputTokens);
         
+        // 保存对话历史记录
+        saveConversationToHistory(question, response.content, useScrapedContent, response.inputTokens, response.outputTokens);
+        
         // 更新账户余额
         fetchAccountBalance(apiKey);
       })
@@ -272,6 +298,145 @@ document.addEventListener('DOMContentLoaded', function() {
         answerDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
       });
   });
+  
+  // 保存对话到历史记录
+  function saveConversationToHistory(question, answer, isContextBased, inputTokens, outputTokens) {
+    const timestamp = new Date().toISOString();
+    const conversation = {
+      timestamp: timestamp,
+      question: question,
+      answer: answer,
+      isContextBased: isContextBased,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      cost: (inputTokens * SONNET_INPUT_COST + outputTokens * SONNET_OUTPUT_COST).toFixed(6)
+    };
+    
+    // 添加到历史记录数组
+    chatHistory.unshift(conversation); // 添加到数组开头，最新的对话在最前面
+    
+    // 限制历史记录数量，最多保存50条
+    if (chatHistory.length > 50) {
+      chatHistory = chatHistory.slice(0, 50);
+    }
+    
+    // 保存到本地存储
+    chrome.storage.local.set({chatHistory: chatHistory}, function() {
+      console.log('对话历史记录已保存');
+      
+      // 启用历史记录按钮
+      viewHistoryBtn.disabled = false;
+      exportHistoryBtn.disabled = false;
+      clearHistoryBtn.disabled = false;
+    });
+  }
+  
+  // 查看历史记录按钮点击事件
+  viewHistoryBtn.addEventListener('click', function() {
+    // 切换历史记录列表的显示状态
+    if (historyListDiv.style.display === 'none') {
+      displayHistoryList();
+      historyListDiv.style.display = 'block';
+      viewHistoryBtn.textContent = '隐藏历史';
+    } else {
+      historyListDiv.style.display = 'none';
+      viewHistoryBtn.textContent = '查看历史';
+    }
+  });
+  
+  // 导出历史记录按钮点击事件
+  exportHistoryBtn.addEventListener('click', function() {
+    if (chatHistory.length === 0) {
+      alert('没有历史记录可导出');
+      return;
+    }
+    
+    // 格式化历史记录为可读的文本
+    const historyText = formatHistoryForExport();
+    
+    // 创建下载
+    const blob = new Blob([historyText], {type: 'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'chat_history_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.txt';
+    a.click();
+    
+    URL.revokeObjectURL(url);
+  });
+  
+  // 清除历史记录按钮点击事件
+  clearHistoryBtn.addEventListener('click', function() {
+    if (confirm('确定要清除所有对话历史记录吗？此操作不可撤销。')) {
+      // 清空历史记录数组
+      chatHistory = [];
+      
+      // 更新本地存储
+      chrome.storage.local.set({chatHistory: chatHistory}, function() {
+        console.log('对话历史记录已清除');
+        
+        // 禁用历史记录按钮
+        viewHistoryBtn.disabled = true;
+        exportHistoryBtn.disabled = true;
+        clearHistoryBtn.disabled = true;
+        
+        // 隐藏历史记录列表
+        historyListDiv.style.display = 'none';
+        viewHistoryBtn.textContent = '查看历史';
+        
+        // 显示提示
+        alert('历史记录已清除');
+      });
+    }
+  });
+  
+  // 显示历史记录列表
+  function displayHistoryList() {
+    if (chatHistory.length === 0) {
+      historyListDiv.innerHTML = '<p>暂无对话历史记录</p>';
+      return;
+    }
+    
+    let html = '';
+    
+    chatHistory.forEach((item, index) => {
+      const date = new Date(item.timestamp);
+      const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+      
+      html += `<div class="history-item">`;
+      html += `<div class="timestamp">${formattedDate} ${item.isContextBased ? '(基于爬取内容)' : '(自由对话)'}</div>`;
+      html += `<div class="question">问: ${item.question}</div>`;
+      html += `<div class="answer">答: ${item.answer.substring(0, 150)}${item.answer.length > 150 ? '...' : ''}</div>`;
+      html += `<div class="tokens">输入: ${item.inputTokens} tokens | 输出: ${item.outputTokens} tokens | 费用: $${item.cost}</div>`;
+      html += `</div>`;
+    });
+    
+    historyListDiv.innerHTML = html;
+  }
+  
+  // 格式化历史记录用于导出
+  function formatHistoryForExport() {
+    if (chatHistory.length === 0) {
+      return '暂无对话历史记录';
+    }
+    
+    let text = '对话历史记录\n';
+    text += '=================\n\n';
+    
+    chatHistory.forEach((item, index) => {
+      const date = new Date(item.timestamp);
+      const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+      
+      text += `[${index + 1}] ${formattedDate} ${item.isContextBased ? '(基于爬取内容)' : '(自由对话)'}\n`;
+      text += `问: ${item.question}\n`;
+      text += `答: ${item.answer}\n`;
+      text += `输入: ${item.inputTokens} tokens | 输出: ${item.outputTokens} tokens | 费用: $${item.cost}\n`;
+      text += '=================\n\n';
+    });
+    
+    return text;
+  }
   
   // 显示token和费用信息
   function displayTokenAndCostInfo(inputTokens, outputTokens) {
